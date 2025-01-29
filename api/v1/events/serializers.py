@@ -13,3 +13,8 @@ class EventListSerializer(serializers.ModelSerializer):
             return obj.event_date.strftime("%d/%m/%y")
         else:
             return None
+    
+class EventCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Event
+        fields = ['title', 'description', 'event_date', 'venue', 'capacity', 'price']
