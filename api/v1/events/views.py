@@ -238,10 +238,10 @@ def stripe_webhook(request):
 # # Disable CSRF for simplicity (use proper auth in production)
 
 
-# from django.shortcuts import render
+from django.shortcuts import render
 
-# def checkout_view(request):
-#     return render(request, 'events/checkout.html')  # Update template path
+def checkout_view(request):
+    return render(request, 'events/checkout.html')  # Update template path
 
 
 # @csrf_exempt  # Add this if you're testing without CSRF token

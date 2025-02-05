@@ -21,6 +21,8 @@ SPREADSHEET_ID = env('SPREADSHEET_ID')
 DEBUG = True
 
 ALLOWED_HOSTS = []
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles') 
+# STATICFILES_DIRS = [os.path.join(BASE_DIR, 'staticfiles'),]
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -104,6 +106,7 @@ USE_I18N = True
 
 USE_TZ = True
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
