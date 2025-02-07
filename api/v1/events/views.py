@@ -8,8 +8,8 @@ import stripe
 
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
-from events.models import Event,EventTicket,TicketPurchase
-from api.v1.events.serializers import EventListSerializer
+from events.models import Event,EventTicket,TicketPurchase,TicketCategory
+from api.v1.events.serializers import EventListSerializer,TicketCategorySerializer
 from evolve.paginator import Paginator
 from django.shortcuts import get_object_or_404
 from django.core.exceptions import ObjectDoesNotExist
@@ -64,7 +64,6 @@ def get_events(request):
         }
     return Response(response_data, status=status.HTTP_200_OK)
 
-
 """
 function for getting a single event
 """
@@ -100,19 +99,13 @@ def get_event(request, pk):
 def create_checkout_session(request):
     try:
         data = request.data
-        event_ticket = EventTicket.objects.get(id=data['event_ticket_id'])
+        # Fetch the TicketCategory based on ticket_id
+        ticket_category = TicketCategory.objects.get(id=data['ticket_id'])
         quantity = int(data['quantity'])
         user_email = data['user_email']
 
-        # Validate ticket availability
-        if event_ticket.remaining_tickets() < quantity:
-            return Response(
-                {'error': 'Not enough tickets available'}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # Calculate total price
-        unit_price = event_ticket.price
+        # Calculate total price (assuming each ticket in the category has a price)
+        unit_price = ticket_category.price
         total_price = unit_price * quantity
 
         # Create Stripe checkout session
@@ -120,9 +113,9 @@ def create_checkout_session(request):
             payment_method_types=['card'],
             line_items=[{
                 'price_data': {
-                    'currency': 'usd',
+                    'currency': 'inr',
                     'product_data': {
-                        'name': f"{event_ticket.ticket_category.name} - {event_ticket.event.title}",
+                        'name': f"{ticket_category.name}",
                         'description': f"Quantity: {quantity}",
                     },
                     'unit_amount': int(unit_price * 100),  # Convert to cents
@@ -130,12 +123,10 @@ def create_checkout_session(request):
                 'quantity': quantity,
             }],
             mode='payment',
-            success_url='http://localhost:3000/success',
-            cancel_url='http://localhost:3000/cancel', 
-            # success_url=settings.STRIPE_SUCCESS_URL,
-            # cancel_url=settings.STRIPE_CANCEL_URL,
+            success_url='http://localhost:3000/success',  # Replace with your React success URL
+            cancel_url='http://localhost:3000/cancel',   # Replace with your React cancel URL
             metadata={
-                'event_ticket_id': str(event_ticket.id),
+                'ticket_category_id': str(ticket_category.id),
                 'quantity': quantity,
                 'unit_price': str(unit_price),
                 'total_price': str(total_price),
@@ -143,9 +134,9 @@ def create_checkout_session(request):
             }
         )
 
-        # Create pending purchase record
+        # Create a TicketPurchase linked directly to TicketCategory
         TicketPurchase.objects.create(
-            event_ticket=event_ticket,
+            ticket_category=ticket_category,  # Link directly to TicketCategory, not EventTicket
             user_email=user_email,
             quantity=quantity,
             total_price=total_price,
@@ -155,16 +146,17 @@ def create_checkout_session(request):
 
         return Response({'session_id': session.id}, status=status.HTTP_200_OK)
 
-    except EventTicket.DoesNotExist:
+    except TicketCategory.DoesNotExist:
         return Response(
-            {'error': 'Invalid ticket'}, 
+            {'error': 'Invalid Ticket Category'},
             status=status.HTTP_404_NOT_FOUND
         )
     except Exception as e:
         return Response(
-            {'error': str(e)}, 
+            {'error': str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
 
 @csrf_exempt
 def stripe_webhook(request):
@@ -227,6 +219,18 @@ def stripe_webhook(request):
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_tickets_categories(request):
+    tickets = TicketCategory.objects.all()  # Get all EventTickets
+    
+    if tickets.exists():
+        print(tickets,'ticket names')
+        # Serialize the tickets
+        serializer = TicketCategorySerializer(tickets, many=True)
+        return Response(serializer.data)  # Return the tickets as JSON
+    else:
+        return Response({"message": "No tickets available."}, status=404)
 
 # import json
 # from django.http import JsonResponse
@@ -242,56 +246,3 @@ from django.shortcuts import render
 
 def checkout_view(request):
     return render(request, 'events/checkout.html')  # Update template path
-
-
-# @csrf_exempt  # Add this if you're testing without CSRF token
-# def create_payment_intent(request):
-#     if request.method == 'POST':
-#         try:
-#             # Debug: Print the raw request body
-#             print("Request body:", request.body)
-            
-#             # Check if request body is empty
-#             if not request.body:
-#                 return JsonResponse({'error': 'Empty request body'}, status=400)
-            
-#             data = json.loads(request.body)
-            
-#             # Debug: Print parsed data
-#             print("Parsed data:", data)
-            
-#             # Validate required fields
-#             if 'amount' not in data:
-#                 return JsonResponse({'error': 'Amount is required'}, status=400)
-                
-#             amount = int(data.get('amount'))
-#             currency = data.get('currency', 'usd')
-            
-#             # Create a Stripe PaymentIntent
-#             payment_intent = stripe.PaymentIntent.create(
-#                 amount=amount,
-#                 currency=currency,
-#                 payment_method_types=['card','paypal'],
-#             )
-            
-#             return JsonResponse({
-#                 'clientSecret': payment_intent.client_secret
-#             })
-        
-#         except json.JSONDecodeError as e:
-#             return JsonResponse({
-#                 'error': 'Invalid JSON format',
-#                 'details': str(e)
-#             }, status=400)
-#         except stripe.error.StripeError as e:
-#             return JsonResponse({
-#                 'error': 'Stripe error',
-#                 'details': str(e)
-#             }, status=400)
-#         except Exception as e:
-#             return JsonResponse({
-#                 'error': 'Server error',
-#                 'details': str(e)
-#             }, status=500)
-    
-#     return JsonResponse({'error': 'Method not allowed'}, status=405)

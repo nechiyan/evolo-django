@@ -5,8 +5,9 @@ from django.utils.translation import gettext_lazy as _
 
 class TicketCategory(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name = models.CharField(max_length=255, unique=True)  # e.g., "Standard", "Premium", "Early Bird"
-    description = models.TextField(blank=True, null=True)  # Optional description
+    name = models.CharField(max_length=255, unique=True)  
+    description = models.TextField(blank=True, null=True)  
+    price = models.DecimalField(max_digits=10, decimal_places=2)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -89,7 +90,7 @@ class GalleryImage(models.Model):
 
 class TicketPurchase(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    event_ticket = models.ForeignKey(EventTicket, on_delete=models.CASCADE, related_name='purchases')
+    ticket_category = models.ForeignKey(TicketCategory, on_delete=models.CASCADE, related_name='purchases')
     user_email = models.EmailField()  # Collect user email for notifications
     quantity = models.IntegerField()  # Number of tickets purchased
     total_price = models.DecimalField(max_digits=10, decimal_places=2)

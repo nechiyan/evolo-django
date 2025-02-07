@@ -29,8 +29,8 @@ class GalleryImageAdmin(admin.ModelAdmin):
     list_filter = ('created_at',)
 
 class TicketPurchaseAdmin(admin.ModelAdmin):
-    list_display = ('id', 'event_ticket', 'user_email', 'quantity','total_price','payment_status')
-    search_fields = ('event_ticket',)
+    list_display = ('id', 'ticket_category', 'user_email', 'quantity','total_price','payment_status')
+    search_fields = ('ticket_category',)
     list_filter = ('payment_status',)
 
 admin.site.register(Event, EventAdmin)
